@@ -140,6 +140,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .lbl{font:700 21px/1 var(--hand);color:var(--accent);min-width:42px}
 .chip{display:inline-block;font:700 13px/1.4 var(--body);padding:3px 11px;border-radius:99px;background:var(--card);color:var(--muted);border:1px solid var(--hair)}
 .chip.warn{background:var(--peach);color:var(--warn);border-color:transparent}
+.chip.reg{display:inline-flex;align-items:center;gap:6px}
+.gauge{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.gauge i{display:block;width:4px;border-radius:2px;background:var(--hair-strong)}
+.gauge i:nth-child(1){height:5px}.gauge i:nth-child(2){height:8.5px}.gauge i:nth-child(3){height:12px}
+.gauge[data-l="1"] i:nth-child(-n+1){background:var(--clay)}
+.gauge[data-l="2"] i:nth-child(-n+2){background:var(--ok)}
+.gauge[data-l="3"] i:nth-child(-n+3){background:var(--accent)}
 .chip.ok{background:var(--sage);color:var(--ok);border-color:transparent}
 
 /* buttons */
@@ -169,6 +176,7 @@ nav button::before,#mCards::before,#mQuiz::before,#restart::before,#qRestart::be
 #fSubmit,#ctxAdd{--ic:var(--i-plus)} #bulkAdd{--ic:var(--i-list)}
 #guessBtn,#completeAll,#cGo,#qExpl .btn.sm{--ic:var(--i-sparkle)}
 label.btn[for="cFile"]{--ic:var(--i-book)}
+#xGo::before{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--i-sparkle) center/contain no-repeat;mask:var(--i-sparkle) center/contain no-repeat}
 label.btn[for="cImg"]::before{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--i-eye) center/contain no-repeat;mask:var(--i-eye) center/contain no-repeat}
 .item .ops .btn{--ic:var(--i-pencil)}
 .item .ops .btn:last-child{--ic:var(--i-trash)}
@@ -320,8 +328,8 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   <div id="localBanner" class="banner" hidden>Ton carnet est enregistré <b>dans ce navigateur uniquement</b>. Il n’est pas synchronisé avec tes autres appareils.</div>
 
   <nav role="tablist">
-    <button role="tab" id="tab-rev" aria-selected="true" data-tab="rev">Réviser</button>
     <button role="tab" id="tab-add" aria-selected="false" data-tab="add">Ajouter</button>
+    <button role="tab" id="tab-rev" aria-selected="true" data-tab="rev">Réviser</button>
     <button role="tab" id="tab-ctx" aria-selected="false" data-tab="ctx">Training</button>
     <button role="tab" id="tab-list" aria-selected="false" data-tab="list">Carnet</button>
     <button role="tab" id="tab-guide" aria-selected="false" data-tab="guide">Guide</button>
@@ -375,19 +383,19 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     <div class="iaHint" hidden><span><b>Facultatif</b> : pour une meilleure expérience (traductions avec registre, exemple et nuance, explications, 30 éléments par thème), ajoute une clé IA.</span><button type="button" class="btn sm iaGo">Ajouter une clé IA</button></div>
     <form id="addForm" autocomplete="off">
       <h2 id="formTitle">Qu’est-ce que tu as lu/entendu ?</h2>
-      <label>Expression ou mot seul, en anglais <small>(tape un morceau : on te propose la suite)</small><input type="text" id="fEn" required placeholder="ex. « to spill the beans » ou juste « awkward »" aria-controls="sugg"></label>
+      <label>Expression ou mot seul, en anglais <small>(tape un morceau puis Entrée : on te propose la suite)</small><input type="text" id="fEn" required placeholder="ex. « to spill the beans » ou juste « awkward »" aria-controls="sugg"></label>
       <div class="sugg" id="sugg" hidden>
         <div class="sugg-list" id="suggList"></div>
         <div class="row" id="guessRow" hidden>
-          <button class="btn sm" type="button" id="guessBtn">Deviner</button>
+          <button class="btn sm" type="button" id="guessBtn" hidden>Deviner</button>
           <span class="status" id="guessStatus" role="status"></span>
         </div>
       </div>
       <div class="ext" id="fExt" hidden></div>
-      <div class="grid2">
+      <div class="grid2" hidden>
         <label>Source / contexte <small>(facultatif : série, film, podcast…)</small><input type="text" id="fSerie" list="series" placeholder="ex. nom de la série, S2E4"></label>
       </div>
-      <div class="picks" id="serieChips" aria-label="Mes sources"></div>
+      <div class="picks" id="serieChips" aria-label="Mes sources" hidden></div>
       <datalist id="series"></datalist>
       <details id="trDetails" hidden>
         <summary>Traduction (laisse vide pour qu’elle soit proposée automatiquement)</summary>
@@ -412,6 +420,24 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       <div class="status" id="addStatus" role="status"></div>
     </form>
 
+    <h2>Depuis un texte ou une capture</h2>
+    <p class="muted" style="margin:0;font-size:14px">Colle un extrait (sous-titres, message, article…), charge un fichier ou une capture d’écran : l’outil te propose les mots et expressions utiles qui s’y trouvent vraiment. Tu coches ceux que tu gardes.</p>
+    <label>Texte source <small>(extrait de sous-titres, transcription d’un audio, e-mail…)</small>
+        <textarea id="cText" placeholder="Colle ici un texte ou une capture d’écran (Ctrl+V), ou glisse un fichier .txt / .srt / .vtt ou une image : l’outil ne prendra que des mots et expressions qui s’y trouvent vraiment."></textarea>
+      </label>
+      <div class="row">
+        <label class="btn sm" for="cFile" style="display:inline-flex;cursor:pointer">Choisir un fichier…</label>
+        <input type="file" id="cFile" accept=".txt,.srt,.vtt,.md,text/plain,text/vtt" hidden>
+        <label class="btn sm" for="cImg" id="cImgBtn" style="display:inline-flex;cursor:pointer">Capture d’écran / image…</label>
+        <input type="file" id="cImg" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" multiple hidden>
+        <span class="muted" style="font-size:13px" id="cFileHint">.txt, sous-titres .srt ou .vtt, captures d’écran</span>
+        <span class="status" id="fileStatus" role="status"></span>
+      </div>
+    <p class="muted" style="margin:0;font-size:13px">Un fichier audio ne peut pas être lu ici : transcris-le d’abord (par ex. avec l’app Dictaphone du Mac), puis colle ou charge le texte.</p>
+    <div class="row"><button class="btn primary" type="button" id="xGo">Extraire le vocabulaire</button></div>
+    <div class="status" id="xStatus" role="status"></div>
+    <div id="xResultsSlot"></div>
+
     <h2>Ajouter une liste</h2>
     <p class="muted" style="margin:0;font-size:14px">Colle tes notes de la semaine : une expression par ligne. Les doublons sont ignorés.</p>
     <label for="bulk" class="muted" style="font-weight:400">Liste</label>
@@ -434,29 +460,18 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
         <input type="text" id="cTheme" required placeholder="ex. entretien d’embauche en logistique · lettre d’excuse au voisin · épisode au tribunal">
       </label>
       <div class="picks" id="ctxIdeas" aria-live="polite"></div>
-      <label>Texte source <small>(facultatif : extrait de sous-titres, transcription d’un audio, e-mail…)</small>
-        <textarea id="cText" placeholder="Colle ici un texte ou une capture d’écran (Ctrl+V), ou glisse un fichier .txt / .srt / .vtt ou une image : l’outil ne prendra que des mots et expressions qui s’y trouvent vraiment."></textarea>
-      </label>
-      <div class="row">
-        <label class="btn sm" for="cFile" style="display:inline-flex;cursor:pointer">Choisir un fichier…</label>
-        <input type="file" id="cFile" accept=".txt,.srt,.vtt,.md,text/plain,text/vtt" hidden>
-        <label class="btn sm" for="cImg" id="cImgBtn" style="display:inline-flex;cursor:pointer">Capture d’écran / image…</label>
-        <input type="file" id="cImg" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" multiple hidden>
-        <span class="muted" style="font-size:13px" id="cFileHint">.txt, sous-titres .srt ou .vtt, captures d’écran</span>
-        <span class="status" id="fileStatus" role="status"></span>
-      </div>
       <div class="grid2">
         <label>Niveau
           <select id="cLevel"><option value="A1 (débutant)">A1 · Débutant</option><option value="A2 (élémentaire)">A2 · Élémentaire</option><option value="B1 (intermédiaire)" selected>B1 · Intermédiaire</option><option value="B2 (intermédiaire avancé)">B2 · Intermédiaire avancé</option><option value="C1 (avancé)">C1 · Avancé</option><option value="C2 (maîtrise, quasi natif)">C2 · Maîtrise</option><option value="tous niveaux, du plus simple (A1) au plus avancé (C2), et indique le niveau de chaque élément dans note">Tous niveaux (mélange)</option></select>
         </label>
         <label>Source / contexte à enregistrer <small>(pour retrouver ces mots)</small>
-          <input type="text" id="cSerie" list="series" placeholder="par défaut : le thème">
+          <input type="text" id="ctxSrc" list="series" placeholder="par défaut : le thème">
         </label>
       </div>
-      <p class="muted" style="margin:0;font-size:13px">Un fichier audio ne peut pas être lu ici : transcris-le d’abord (par ex. avec l’app Dictaphone du Mac), puis colle ou charge le texte. Sans texte, pour un épisode ou un film, l’outil propose du vocabulaire lié au thème, pas les répliques réelles.</p>
       <div class="row"><button class="btn primary" type="submit" id="cGo">Proposer 30 éléments</button></div>
       <div class="status" id="ctxStatus" role="status"></div>
     </form>
+    <div id="ctxResultsSlot"></div>
     <div id="ctxResults" hidden>
       <div class="row" style="justify-content:space-between">
         <span class="chip" id="ctxMode"></span>
@@ -498,8 +513,8 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       <h3>Les onglets</h3>
       <ul>
         <li><b>Réviser</b> : mode <i>Cartes</i> (tu te testes, puis « Got it » ou « À revoir ») ou mode <i>Quiz</i> (10 questions à 4 choix, avec une explication après chaque réponse). Le menu <i>Sens</i> propose anglais → français, français → anglais ou français → portugais.</li>
-        <li><b>Ajouter</b> : suggestions instantanées (ton carnet, environ 200 expressions courantes, les 20 000 mots anglais les plus fréquents). Si rien ne correspond, l’outil devine. Tu peux aussi ajouter une liste, une expression par ligne.</li>
-        <li><b>Training</b> : décris une situation (ex. entretien d’embauche) ou charge un texte (.txt, sous-titres .srt ou .vtt) ou une capture d’écran : le texte anglais de l’image est lu automatiquement (avec ta clé IA si elle lit les images, sinon par une reconnaissance de texte gratuite, Tesseract). L’outil propose 30 éléments, différents à chaque session, au niveau choisi (A1 à C2). Tu coches ceux que tu gardes.</li>
+        <li><b>Ajouter</b> : suggestions instantanées (ton carnet, environ 200 expressions courantes, les 20 000 mots anglais les plus fréquents). Si rien ne correspond, l’outil devine. Tu peux aussi coller un texte, charger un fichier de sous-titres (.txt, .srt, .vtt) ou une capture d’écran : l’outil en extrait les mots et expressions utiles. Et ajouter une liste, une expression par ligne.</li>
+        <li><b>Training</b> : décris une situation (ex. entretien d’embauche). L’outil propose 30 éléments, différents à chaque session, au niveau choisi (A1 à C2). Tu coches ceux que tu gardes.</li>
         <li><b>Carnet</b> : recherche, filtres, modification, vérification, suppression.</li>
       </ul>
     </section>
@@ -698,9 +713,17 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     const v=document.createElement("span");if(cls)v.className=cls;v.textContent=val;
     r.append(l,v);return r;
   }
+  const REG_LVL={vulgaire:1,argot:1,familier:1,courant:2,technique:3,soutenu:3};
+  function regChip(reg){
+    reg=String(reg||"").trim().toLowerCase();if(!reg)return null;
+    const c=document.createElement("span");c.className="chip reg";c.title="Registre : "+reg;
+    const g=document.createElement("span");g.className="gauge";g.dataset.l=String(REG_LVL[reg]||2);g.setAttribute("aria-hidden","true");
+    for(let i=0;i<3;i++)g.appendChild(document.createElement("i"));
+    c.append(g,document.createTextNode(reg));return c;
+  }
   function chips(w){
     const r=document.createElement("div");r.className="row";
-    if(w.registre){const c=document.createElement("span");c.className="chip";c.textContent=w.registre;r.appendChild(c);}
+    if(w.registre){const c=regChip(w.registre);if(c)r.appendChild(c);}
     if(w.aVerifier){const c=document.createElement("span");c.className="chip warn";c.textContent="proposé automatiquement · à vérifier";r.appendChild(c);}
     if(isMaster(w)){const c=document.createElement("span");c.className="chip ok";c.textContent="maîtrisée";r.appendChild(c);}
     return r;
@@ -881,7 +904,9 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     const [a,b]=await Promise.all([get("https://api.datamuse.com/sug?s="+q+"&max=6"),get("https://api.datamuse.com/words?sl="+q+"&max=4")]);
     const seen=new Set(),out=[];
     [...a,...b].forEach(x=>{const w=x&&x.word;if(w&&!seen.has(w)&&simp(w)!==simp(frag)){seen.add(w);out.push({en:w,sens:""});}});
-    return out.slice(0,5);
+    const top=out.slice(0,5);
+    await Promise.all(top.map(async o=>{try{o.sens=await freeTranslate(o.en,"fr");}catch(e){}}));
+    return top;
   }
 
   /* ---------- AI with the viewer's own key ---------- */
@@ -1108,7 +1133,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
 
   /* ---------- add / edit ---------- */
   function resetForm(){
-    editingId=null;$("addForm").reset();$("fAuto").checked=true;$("fSerie").value=lsGet("carnetvo.serie")||"";renderSeries();$("sugg").hidden=true;aiSugg=[];$("guessStatus").textContent="";renderFormExt();
+    editingId=null;$("addForm").reset();$("fAuto").checked=true;$("fSerie").value="";renderSeries();$("sugg").hidden=true;aiSugg=[];$("guessStatus").textContent="";renderFormExt();
     $("formTitle").textContent="Qu’est-ce que tu as lu/entendu ?";$("fSubmit").textContent="Ajouter";$("fCancel").hidden=true;$("trDetails").open=false;$("trDetails").hidden=true;
   }
   $("fCancel").addEventListener("click",()=>{resetForm();$("addStatus").textContent="";});
@@ -1207,20 +1232,20 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       for(const x of WORDS){if(x===q||mineKeys.has(x))continue;if(x.startsWith(q)){if(pre.length<6)pre.push(x);}else if(q.length>=4&&inn.length<3&&x.includes(q))inn.push(x);if(pre.length>=6&&(q.length<4||inn.length>=3))break;}
       single=[...pre,...inn].slice(0,6);
     }
-    const ai=aiSugg.filter(s=>!mineKeys.has(simp(s.en)));
+    const ai=aiSugg;const aiKeys=new Set(ai.map(s=>simp(s.en)));const inCarnet=new Set(words.map(w=>simp(w.en)));
     list.textContent="";
-    const add=(text,note,cls)=>{
+    const add=(text,note,cls,label)=>{
       const b=document.createElement("button");b.type="button";b.className="sug";
       const t=document.createElement("span");highlight(t,text,tokens);b.appendChild(t);
       if(note){const n=document.createElement("small");n.textContent=note;b.appendChild(n);}
-      if(cls){const c=document.createElement("span");c.className="chip "+cls;c.textContent=cls==="warn"?"proposé automatiquement":"déjà dans ton carnet";b.appendChild(c);}
+      if(cls==="reg"){const c=regChip(label);if(c)b.appendChild(c);}else if(cls){const c=document.createElement("span");c.className="chip "+cls;c.textContent=label||(cls==="warn"?"proposé automatiquement":"déjà dans ton carnet");b.appendChild(c);}
       b.onclick=()=>{$("fEn").value=text;aiSugg=[];box.hidden=true;renderFormExt();$("fEn").focus();};
       list.appendChild(b);
     };
-    mine.forEach(w=>add(w.en,w.fr||"",""+"ok"));
-    ai.forEach(s=>add(s.en,s.sens||"","warn"));
-    base.forEach(s=>add(s,"",""));
-    single.forEach(s=>add(s,"mot",""));
+    ai.forEach(s=>add(s.en,(s.sens||"")+(inCarnet.has(simp(s.en))?"  ·  déjà dans ton carnet":""),s.reg?"reg":"",s.reg));
+    mine.filter(w=>!aiKeys.has(simp(w.en))).forEach(w=>add(w.en,w.fr||"",""+"ok"));
+    base.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,"",""));
+    single.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,"mot",""));
     $("guessRow").hidden=false;
     if(!list.children.length){
       const p=document.createElement("div");p.className="muted";p.style.cssText="font-size:14px;padding:4px 10px";
@@ -1229,11 +1254,11 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       list.appendChild(p);
       clearTimeout(autoTimer);
       if(auto&&!guessing)autoTimer=setTimeout(()=>guess(true),1200);
-    }
+    }else if(raw.length>=3&&simp(raw)!==lastGuess&&!guessing){clearTimeout(autoTimer);autoTimer=setTimeout(()=>guess(true),1200);}
     box.hidden=false;
   }
   $("fEn").addEventListener("input",()=>{clearTimeout(autoTimer);aiSugg=[];$("guessStatus").textContent="";clearTimeout(suggTimer);suggTimer=setTimeout(renderSugg,120);});
-  $("fEn").addEventListener("keydown",e=>{if(e.key==="Escape")$("sugg").hidden=true;if(e.key==="ArrowDown"){const f=$("suggList").querySelector(".sug");if(f&&!$("sugg").hidden){e.preventDefault();f.focus();}}});
+  $("fEn").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing&&!editingId){const v=$("fEn").value.trim();if(v.length>=2&&simp(v)!==lastGuess){e.preventDefault();clearTimeout(autoTimer);guess(false);return;}}if(e.key==="Escape")$("sugg").hidden=true;if(e.key==="ArrowDown"){const f=$("suggList").querySelector(".sug");if(f&&!$("sugg").hidden){e.preventDefault();f.focus();}}});
   $("suggList").addEventListener("keydown",e=>{
     const items=[...$("suggList").querySelectorAll(".sug")],i=items.indexOf(document.activeElement);
     if(e.key==="ArrowDown"&&i<items.length-1){e.preventDefault();items[i+1].focus();}
@@ -1251,15 +1276,16 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     const prompt=[
       "Une apprenante a entendu en anglais (série, film, podcast…) une expression OU un mot seul, mais n'en a noté qu'un morceau, parfois mal orthographié ou écrit à l'oreille : \""+frag+"\".",
       $("fSerie").value.trim()?"Source / contexte : "+$("fSerie").value.trim()+".":"",
-      "Propose jusqu'à 5 candidats réels et courants qu'elle a pu entendre, de la plus probable à la moins probable : mots seuls (bien orthographiés) et/ou expressions (idiomes, phrasal verbs, argot) contenant ce morceau.",
-      "N'invente aucun mot ni expression. Si rien ne correspond, renvoie [].",
-      "Réponds uniquement par un tableau JSON d'objets {\"en\": le mot ou l'expression complète, \"sens\": le sens en français en 8 mots maximum}."
+      "Propose jusqu'à 8 candidats réels qu'elle a pu entendre : mots seuls (bien orthographiés) et/ou expressions (idiomes, phrasal verbs, argot) contenant ce morceau. Classe-les du plus courant en anglais (en haut) au moins courant (en bas). Si ce qu’elle a noté est déjà un mot ou une expression complète et correcte, mets-le en premier, même s’il est simple ou déjà connu.",
+      "Pour chaque candidat, donne la liste COMPLÈTE de ses traductions françaises usuelles, de la plus courante à la moins courante, et son registre (un seul mot : courant, familier, argot, vulgaire, soutenu ou technique).",
+      "N'invente aucun mot, expression ni traduction. Si rien ne correspond, renvoie [].",
+      "Réponds uniquement par un tableau JSON d'objets {\"en\": le mot ou l'expression complète, \"traductions\": [les traductions françaises, de la plus courante à la moins courante], \"registre\": le registre}."
     ].filter(Boolean).join("\n");
     try{
       const res=sample?await sample.json(prompt,{modelTier:"quick"}):await freeGuess(frag);
       if(simp($("fEn").value)!==simp(frag)){guessing=false;$("guessBtn").disabled=false;st.textContent="";return;}
-      aiSugg=Array.isArray(res)?res.filter(x=>x&&typeof x.en==="string").slice(0,5).map(x=>({en:x.en.trim(),sens:String(x.sens||"")})):[];
-      st.textContent=aiSugg.length?"Propositions à vérifier : clique sur la bonne.":"Aucun mot ni expression correspondant.";
+      aiSugg=Array.isArray(res)?res.filter(x=>x&&typeof x.en==="string").slice(0,8).map(x=>({en:x.en.trim(),sens:(Array.isArray(x.traductions)?x.traductions.map(String).filter(Boolean).join(" · "):String(x.sens||"")),reg:String(x.registre||"").trim().toLowerCase()})):[];
+      st.textContent=aiSugg.length?"À vérifier : clique sur la bonne proposition.":"Aucun mot ni expression correspondant.";
       renderSugg();
     }catch(e){
       st.classList.add("err");
@@ -1351,14 +1377,18 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   $("cLevel").addEventListener("change",()=>lsSet("carnetvo.level",$("cLevel").value));
   $("cTheme").addEventListener("input",()=>{themeAI=[];clearTimeout(themeTimer);renderIdeas();themeTimer=setTimeout(themeGuess,1500);});
   renderIdeas();
-  $("ctxForm").addEventListener("submit",async e=>{
-    e.preventDefault();
-    const st=$("ctxStatus");st.classList.remove("err");
-    const theme=$("cTheme").value.trim();if(!theme)return;
-    if(!sample)return freeTheme(theme,st);
-    let text=$("cText").value.trim();let cut=false;
+  let ctxSrc="ctx";
+  $("ctxForm").addEventListener("submit",e=>{e.preventDefault();runCtx(false);});
+  $("xGo").addEventListener("click",()=>runCtx(true));
+  async function runCtx(fromAdd){
+    const st=$(fromAdd?"xStatus":"ctxStatus");st.classList.remove("err");
+    let text=fromAdd?$("cText").value.trim():"";let cut=false;
+    if(fromAdd&&!text){st.classList.add("err");st.textContent="Colle d’abord un texte, ou charge un fichier ou une capture d’écran.";return;}
+    const theme=fromAdd?($("fSerie").value.trim()||"texte fourni"):$("cTheme").value.trim();if(!theme)return;
+    ctxSrc=fromAdd?"add":"ctx";(fromAdd?$("xResultsSlot"):$("ctxResultsSlot")).appendChild($("ctxResults"));
+    if(!sample)return freeTheme(theme,st,fromAdd);
     if(text.length>12000){text=text.slice(0,12000);cut=true;}
-    const level=$("cLevel").value;
+    const level=fromAdd?"tous niveaux, du plus simple (A1) au plus avancé (C2), et indique le niveau de chaque élément dans note":$("cLevel").value;
     const known=words.map(w=>w.en).slice(0,300);
     const hKey="carnetvo.vu."+simp(theme).slice(0,60);
     let seenBefore=[];try{seenBefore=JSON.parse(lsGet(hKey)||"[]");}catch(e){}
@@ -1377,7 +1407,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       "N'invente rien : si tu hésites sur une traduction, dis-le dans note.",
       "Réponds uniquement par un tableau JSON de ces objets."
     ].filter(Boolean).join("\n");
-    $("cGo").disabled=true;$("ctxResults").hidden=true;
+    $("cGo").disabled=true;$("xGo").disabled=true;$("ctxResults").hidden=true;
     st.textContent="Préparation de la liste… (5 à 60 s)";
     try{
       const res=await sample.json(prompt,{cache:false});
@@ -1389,7 +1419,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       const seenSet=new Set(seenBefore.map(simp));
       cands=cands.filter(c=>!seenSet.has(simp(c.en)));
       lsSet(hKey,JSON.stringify([...seenBefore,...cands.map(c=>c.en)].slice(-300)));
-      if(!cands.length){st.textContent="Rien trouvé. Précise le thème ou colle un texte plus long.";}
+      if(!cands.length){st.textContent=fromAdd?"Rien trouvé de nouveau dans ce texte. Colle un extrait plus long.":"Rien trouvé. Précise le thème.";}
       else{
         st.textContent=cut?"Texte coupé à 12 000 caractères. ":"";
         $("ctxMode").textContent=text?"tiré de ton texte":"vocabulaire lié au thème";
@@ -1403,8 +1433,8 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       st.textContent=m[err&&err.code]||(err&&err.text)||"La génération a échoué. Réessaie plus tard.";
       if(err&&(err.code==="not_granted"||err.code==="sampling_disabled")){sample=null;applySampleUI();}
     }
-    $("cGo").disabled=false;
-  });
+    $("cGo").disabled=false;$("xGo").disabled=false;
+  }
   /* ---------- free theme vocabulary (no key) ---------- */
   const RANK=new Map();WORDS.forEach((w,i)=>{if(!RANK.has(w))RANK.set(w,i);});
   function levelRange(){
@@ -1413,15 +1443,15 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     if(/^B1/.test(v))return [700,8000];if(/^B2/.test(v))return [1500,13000];
     if(/^C/.test(v))return [3000,1e9];return [200,1e9];
   }
-  async function freeTheme(theme,st){
-    let text=$("cText").value.trim().slice(0,12000);
+  async function freeTheme(theme,st,fromAdd){
+    let text=fromAdd?$("cText").value.trim().slice(0,12000):"";
     const have=new Set(words.map(w=>simp(w.en)));
     const hKey="carnetvo.vu."+simp(theme).slice(0,60);
     let seenBefore=[];try{seenBefore=JSON.parse(lsGet(hKey)||"[]");}catch(e){}
     const seenSet=new Set(seenBefore.map(simp));
-    const [lo,hi]=levelRange();
+    const [lo,hi]=fromAdd?[0,1e9]:levelRange();
     const okRank=w=>{const r=RANK.has(w)?RANK.get(w):20000;return r>=lo&&r<=hi;};
-    $("cGo").disabled=true;$("ctxResults").hidden=true;st.classList.remove("err");
+    $("cGo").disabled=true;$("xGo").disabled=true;$("ctxResults").hidden=true;st.classList.remove("err");
     let pick=[];
     try{
       if(text){
@@ -1451,7 +1481,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       }
       const uniq=new Set();
       pick=pick.filter(c=>{const k=simp(c.en);if(uniq.has(k)||seenSet.has(k))return false;uniq.add(k);return true;}).slice(0,30);
-      if(!pick.length){st.textContent="Rien trouvé sans clé IA. Essaie un thème plus simple (ex. « cuisine », « travail »), colle un texte, ou ajoute une clé dans le Guide.";$("cGo").disabled=false;return;}
+      if(!pick.length){st.textContent=fromAdd?"Rien trouvé sans clé IA dans ce texte. Colle un extrait plus long, ou ajoute une clé dans le Guide.":"Rien trouvé sans clé IA. Essaie un thème plus simple (ex. « cuisine », « travail »), ou ajoute une clé dans le Guide.";$("cGo").disabled=false;$("xGo").disabled=false;return;}
       let done=0;
       const tr=async c=>{try{c.fr=await freeTranslate(c.en,"fr");}catch(e){c.fr="";}try{c.pt=await freeTranslate(c.en,"pt-BR");}catch(e){c.pt="";}done++;st.textContent="Traduction… "+done+"/"+pick.length;};
       for(let i=0;i<pick.length;i+=5)await Promise.all(pick.slice(i,i+5).map(tr));
@@ -1462,7 +1492,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       $("ctxMode").className="chip warn";$("ctxAddStatus").textContent="";
       renderCands();$("ctxResults").hidden=false;
     }catch(e){st.classList.add("err");st.textContent="Recherche gratuite indisponible pour le moment. Réessaie plus tard.";}
-    $("cGo").disabled=false;
+    $("cGo").disabled=false;$("xGo").disabled=false;
   }
 
   function renderCands(){
@@ -1514,8 +1544,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       if(!txt){st.classList.add("err");st.textContent="Le fichier ne contient pas de texte lisible.";return;}
       $("cText").value=txt;
       const base=f.name.replace(/\.[^.]+$/,"").replace(/[._]+/g," ").trim();
-      if(!$("cSerie").value.trim())$("cSerie").value=base.slice(0,80);
-      if(!$("cTheme").value.trim())$("cTheme").value=base.slice(0,80);
+      if(!$("fSerie").value.trim())$("fSerie").value=base.slice(0,80);
       st.textContent="« "+f.name+" » chargé ("+txt.length.toLocaleString("fr-FR")+" caractères"+(txt.length>12000?", seuls les 12 000 premiers seront utilisés":"")+").";
     }catch(e){st.classList.add("err");st.textContent="Impossible de lire ce fichier.";}
   }
@@ -1554,7 +1583,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       if(!txt){st.classList.add("err");st.textContent="Aucun texte anglais trouvé dans "+(files.length>1?"ces images":"cette image")+".";}
       else{
         const cur=$("cText").value.trim();$("cText").value=cur?cur+"\n"+txt:txt;
-        st.textContent="Texte lu dans "+files.length+" image(s) "+how+(extra?" (les 5 premières)":"")+" : vérifie-le ci-dessus, puis clique sur « Proposer 30 éléments ».";
+        st.textContent="Texte lu dans "+files.length+" image(s) "+how+(extra?" (les 5 premières)":"")+" : vérifie-le ci-dessus, puis clique sur « Extraire le vocabulaire ».";
       }
     }catch(e){st.classList.add("err");st.textContent="Lecture de l’image impossible pour le moment (connexion nécessaire).";}
     imgBusy=false;
@@ -1567,7 +1596,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   $("ctxAdd").addEventListener("click",async()=>{
     const st=$("ctxAddStatus");st.classList.remove("err");
     const pick=cands.filter(c=>c.keep&&!c.dup);if(!pick.length)return;
-    const serie=($("cSerie").value.trim()||$("cTheme").value.trim()).slice(0,80);
+    const serie=(ctxSrc==="add"?($("fSerie").value.trim()||"Texte"):($("ctxSrc").value.trim()||$("cTheme").value.trim())).slice(0,80);
     $("ctxAdd").disabled=true;let n=0;
     saveSerie(serie);
     try{
@@ -1635,7 +1664,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   /* ---------- boot ---------- */
   const t0=lsGet("carnetvo.tab");if(["add","list","ctx","guide"].includes(t0))showTab(t0);
   if(lsGet("carnetvo.revmode")==="quiz")setTimeout(()=>setRevMode("quiz"),0);
-  const s0=lsGet("carnetvo.serie")||"";$("fSerie").value=s0;$("bulkSerie").value=s0;
+  const s0=lsGet("carnetvo.serie")||"";$("fSerie").value="";$("bulkSerie").value=s0;
   renderStats();renderList();
   $("cLine").textContent="Chargement…";
   const C=window.claude;
