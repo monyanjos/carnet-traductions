@@ -140,6 +140,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .lbl{font:700 21px/1 var(--hand);color:var(--accent);min-width:42px}
 .chip{display:inline-block;font:700 13px/1.4 var(--body);padding:3px 11px;border-radius:99px;background:var(--card);color:var(--muted);border:1px solid var(--hair)}
 .chip.warn{background:var(--peach);color:var(--warn);border-color:transparent}
+.trs{margin:4px 0 2px;padding-left:20px;display:grid;gap:2px;color:var(--ink);font-size:15px}
+.trs li::marker{color:var(--muted);font-size:13px}
 .chip.reg{display:inline-flex;align-items:center;gap:6px}
 .gauge{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
 .gauge i{display:block;width:4px;border-radius:2px;background:var(--hair-strong)}
@@ -1403,7 +1405,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       "Donne exactement 30 éléments (moins si le texte n'en contient pas autant), tous différents, variés : environ 12 verbes ou phrasal verbs, 12 expressions, 6 mots.",
       known.length?"Évite ceux qu'elle connaît déjà : "+JSON.stringify(known)+".":"",
       seenBefore.length?"Évite aussi ceux déjà proposés lors des sessions précédentes : "+JSON.stringify(seenBefore)+".":"",
-      "Pour chaque élément : en (forme de base), type (verbe | expression | mot), fr (traduction naturelle dans ce contexte), pt (portugais du Brésil), registre (un mot : courant, familier, argot, vulgaire, soutenu, technique), exemple (phrase courte en anglais, dans ce contexte), note (nuance utile en français, max 20 mots, ou \"\").",
+      "Pour chaque élément : en (forme de base), type (verbe | expression | mot), traductions (TOUTES ses traductions françaises usuelles, de la plus courante à la moins courante, chacune sous la forme {\"fr\": la traduction, \"contexte\": dans quel cas on l’emploie, en 2 à 5 mots}), pt (portugais du Brésil), registre (un mot : courant, familier, argot, vulgaire, soutenu, technique), exemple (phrase courte en anglais, dans ce contexte), note (nuance utile en français, max 20 mots, ou \"\").",
       "N'invente rien : si tu hésites sur une traduction, dis-le dans note.",
       "Réponds uniquement par un tableau JSON de ces objets."
     ].filter(Boolean).join("\n");
@@ -1413,7 +1415,9 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       const res=await sample.json(prompt,{cache:false});
       const have=new Set(words.map(w=>simp(w.en)));
       cands=(Array.isArray(res)?res:[]).filter(x=>x&&typeof x.en==="string"&&x.en.trim()).slice(0,40).map(x=>({
-        en:x.en.trim(),type:String(x.type||""),fr:String(x.fr||""),pt:String(x.pt||""),registre:String(x.registre||""),
+        en:x.en.trim(),type:String(x.type||""),
+        trs:(Array.isArray(x.traductions)?x.traductions:[]).map(t=>typeof t==="string"?{fr:t,ctx:""}:{fr:String(t&&t.fr||""),ctx:String(t&&t.contexte||"")}).filter(t=>t.fr),
+        fr:(Array.isArray(x.traductions)&&x.traductions.length?x.traductions.map(t=>typeof t==="string"?t:String(t&&t.fr||"")).filter(Boolean).join(", "):String(x.fr||"")),pt:String(x.pt||""),registre:String(x.registre||""),
         exemple:String(x.exemple||""),note:String(x.note||""),dup:have.has(simp(x.en)),keep:!have.has(simp(x.en))
       }));
       const seenSet=new Set(seenBefore.map(simp));
@@ -1503,11 +1507,14 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       cb.onchange=()=>{c.keep=cb.checked;updCount();};
       const body=document.createElement("div");
       const en=document.createElement("div");en.className="en";en.textContent=c.en;
-      const tr=document.createElement("div");tr.className="tr";tr.textContent=c.fr+(c.pt?"  ·  "+c.pt:"");
+      const tr=document.createElement("div");tr.className="tr";
+      if(c.trs&&c.trs.length){const ul=document.createElement("ol");ul.className="trs";c.trs.forEach(t=>{const li=document.createElement("li");const b=document.createElement("b");b.textContent=t.fr;li.appendChild(b);if(t.ctx){const k=document.createElement("span");k.className="muted";k.textContent=" — "+t.ctx;li.appendChild(k);}ul.appendChild(li);});tr.appendChild(ul);if(c.pt){const p=document.createElement("div");p.textContent="PT : "+c.pt;tr.appendChild(p);}}
+      else tr.textContent=c.fr+(c.pt?"  ·  "+c.pt:"");
       body.append(en,tr);
       if(c.exemple){const ex=document.createElement("div");ex.className="ex";ex.textContent="« "+c.exemple+" »";body.appendChild(ex);}
       const meta=document.createElement("div");meta.className="meta";
-      [c.type,c.registre].filter(Boolean).forEach(t=>{const s=document.createElement("span");s.className="chip";s.textContent=t;meta.appendChild(s);});
+      if(c.type){const s=document.createElement("span");s.className="chip";s.textContent=c.type;meta.appendChild(s);}
+      if(c.registre){const r=regChip(c.registre);if(r)meta.appendChild(r);}
       if(c.dup){const s=document.createElement("span");s.className="chip ok";s.textContent="déjà dans ton carnet";meta.appendChild(s);}
       if(c.note){const s=document.createElement("span");s.className="muted";s.style.fontSize="13px";s.textContent=c.note;meta.appendChild(s);}
       body.appendChild(meta);
