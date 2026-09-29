@@ -235,6 +235,10 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
 .sug:hover,.sug:focus-visible{background:var(--peach)}
 .sug mark{background:var(--peach);color:var(--warn);font-weight:700;padding:0 2px;border-radius:3px}
 .sug small{color:var(--muted);font-size:13.5px}
+.sug.inst{background:color-mix(in srgb,var(--sky) 55%,transparent)}
+.sug.inst:hover,.sug.inst:focus-visible{background:var(--sky)}
+.sug.inst small{color:var(--ink);font-size:15px}
+.chip.inst{background:var(--card);color:var(--accent);border-color:transparent;font-size:12px}
 #guessRow{padding:4px 8px}
 
 /* context candidates */
@@ -950,12 +954,13 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   async function freeGuess(frag){
     const q=encodeURIComponent(frag.toLowerCase());
     const get=u=>fetch(u).then(r=>r.ok?r.json():[]).catch(()=>[]);
-    const [a,b]=await Promise.all([get("https://api.datamuse.com/sug?s="+q+"&max=6"),get("https://api.datamuse.com/words?sl="+q+"&max=4")]);
+    const nw=frag.trim().split(/\s+/).length;
+    const [a,b]=await Promise.all([nw<=3?get("https://api.datamuse.com/sug?s="+q+"&max=6"):[],nw<=2?get("https://api.datamuse.com/words?sl="+q+"&max=4"):[]]);
     const seen=new Set(),out=[];
     const f=simp(frag);if(RANK.has(f)||IDIOMS.some(i=>simp(i)===f)||[...a,...b].some(x=>x&&simp(x.word)===f)){seen.add(f);out.push({en:frag.trim().toLowerCase(),sens:""});}
     [...a,...b].forEach(x=>{const w=x&&x.word;if(w&&!seen.has(w)&&simp(w)!==f){seen.add(w);out.push({en:w,sens:""});}});
     const top=out.slice(0,5);
-    await Promise.all(top.map(async o=>{try{o.sens=await freeTranslate(o.en,"fr");}catch(e){}}));
+    await Promise.all(top.map(async o=>{try{o.sens=(await quickTr(o.en)).join(" · ");}catch(e){}}));
     return top;
   }
 
@@ -1273,6 +1278,56 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     tokens.forEach(t=>{if(t.length<2)return;const re=new RegExp("("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");html=html.replace(re,"<mark>$1</mark>");});
     el.innerHTML=html;
   }
+  /* ---------- instant translation ---------- */
+  const QT_KEY="carnetvo.qtcache";let qtCache=null,qtOff=false,aiTrTimer=null;const qtWait={},qtTried=new Set();
+  function qtLoad(){if(!qtCache){try{qtCache=JSON.parse(lsGet(QT_KEY)||"{}")||{};}catch(e){qtCache={};}}return qtCache;}
+  function qtGet(t){const v=qtLoad()[simp(t)];return Array.isArray(v)&&v.length?v:null;}
+  function qtPut(t,v){const c=qtLoad(),k=simp(t);delete c[k];c[k]=v;const ks=Object.keys(c);if(ks.length>800)ks.slice(0,ks.length-800).forEach(x=>delete c[x]);lsSet(QT_KEY,JSON.stringify(c));}
+  async function qtFetch(t){
+    const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&dt=bd&dj=1&q="+encodeURIComponent(t));
+    if(!r.ok)throw {code:r.status===429?"rate_limited":"error"};
+    const j=await r.json();
+    const main=(j.sentences||[]).map(s=>s&&s.trans||"").join("").trim();
+    const groups=(j.dict||[]).map(d=>(d&&d.terms||[]).slice());
+    const all=[main];for(let i=0;i<8;i++)groups.forEach(g=>{if(g[i])all.push(g[i]);});
+    const out=[];all.forEach(x=>{x=String(x||"").trim();if(x&&!out.some(y=>y.toLowerCase()===x.toLowerCase()))out.push(x);});
+    return out.slice(0,6);
+  }
+  function quickTr(text){
+    const t=String(text||"").trim();if(!t)return Promise.resolve([]);
+    const hit=qtGet(t);if(hit)return Promise.resolve(hit);
+    const k=simp(t);if(qtWait[k])return qtWait[k];
+    return qtWait[k]=(async()=>{
+      let v=[];
+      if(!qtOff){try{v=await Promise.race([qtFetch(t),new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),4000))]);}catch(e){if(e instanceof TypeError)qtOff=true;v=[];}}
+      if(!v.length&&typeof freeTranslate==="function"){try{const x=await freeTranslate(t,"fr");if(x)v=[x];}catch(e){}}
+      if(v.length)qtPut(t,v);
+      delete qtWait[k];return v;
+    })();
+  }
+  async function aiTr(list){
+    if(!sample||!list.length)return;
+    const prompt=["Traduis en français chaque mot ou expression anglaise de la liste.",
+      "Pour chacun, donne jusqu'à 5 traductions françaises courtes, de la plus courante à la moins courante. N'invente rien.",
+      "Réponds uniquement par un tableau JSON d'objets {\"en\": le texte anglais exact, \"traductions\": [les traductions]}.",
+      ...list.map(x=>"- "+x)].join("\n");
+    try{const r=await Promise.race([sample.json(prompt,{modelTier:"quick"}),new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),12000))]);
+      (Array.isArray(r)?r:[]).forEach(o=>{if(o&&typeof o.en==="string"&&Array.isArray(o.traductions)){const v=o.traductions.map(String).map(s=>s.trim()).filter(Boolean).slice(0,6);if(v.length)qtPut(o.en,v);}});
+    }catch(e){}
+  }
+  function fillTr(list){
+    const raw0=$("fEn").value;
+    Promise.all(list.map(t=>quickTr(t))).then(()=>{
+      const miss=list.filter(t=>!qtGet(t));
+      if(miss.length&&qtOff&&sample){
+        clearTimeout(aiTrTimer);
+        aiTrTimer=setTimeout(async()=>{if($("fEn").value!==raw0)return;await aiTr(miss);list.forEach(t=>qtTried.add(simp(t)));if($("fEn").value===raw0)renderSugg();},500);
+        return;
+      }
+      list.forEach(t=>qtTried.add(simp(t)));
+      if($("fEn").value===raw0)renderSugg();
+    });
+  }
   function renderSugg(){
     const box=$("sugg"),list=$("suggList"),raw=$("fEn").value.trim();
     if(editingId||raw.length<2){box.hidden=true;return;}
@@ -1290,7 +1345,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     const ai=aiSugg;const aiKeys=new Set(ai.map(s=>simp(s.en)));const inCarnet=new Set(words.map(w=>simp(w.en)));
     list.textContent="";
     const add=(text,note,cls,label)=>{
-      const b=document.createElement("button");b.type="button";b.className="sug";
+      const b=document.createElement("button");b.type="button";b.className="sug"+(cls==="inst"?" inst":"");
       const t=document.createElement("span");highlight(t,text,tokens);b.appendChild(t);
       if(note){const n=document.createElement("small");n.textContent=note;b.appendChild(n);}
       if(cls==="reg"){const c=regChip(label);if(c)b.appendChild(c);}else if(cls){const c=document.createElement("span");c.className="chip "+cls;c.textContent=label||(cls==="warn"?"proposé automatiquement":"déjà dans ton carnet");b.appendChild(c);}
@@ -1299,10 +1354,13 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       const sb=sayBtn(text);if(sb)row.appendChild(sb);
       list.appendChild(row);
     };
-    ai.forEach(s=>add(s.en,(s.sens||"")+(inCarnet.has(simp(s.en))?"  ·  déjà dans ton carnet":""),s.reg?"reg":"",s.reg));
+    const want=[],trOf=t=>{const v=qtGet(t);if(v)return v.join(" · ");if(qtTried.has(simp(t)))return "";want.push(t);return "…";};
+    if(!ai.some(s=>simp(s.en)===q)&&(!qtOff||sample||qtGet(raw)))add(raw,trOf(raw),"inst","traduction instantanée");
+    ai.forEach(s=>add(s.en,(s.sens||trOf(s.en))+(inCarnet.has(simp(s.en))?"  ·  déjà dans ton carnet":""),s.reg?"reg":"",s.reg));
     mine.filter(w=>!aiKeys.has(simp(w.en))).forEach(w=>add(w.en,w.fr||"",""+"ok"));
-    base.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,"",""));
-    single.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,"mot",""));
+    base.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,trOf(s),""));
+    single.filter(x=>!aiKeys.has(simp(x))).forEach(s=>add(s,trOf(s),""));
+    if(want.length)fillTr(want);
     $("guessRow").hidden=false;
     if(!list.children.length){
       const p=document.createElement("div");p.className="muted";p.style.cssText="font-size:14px;padding:4px 10px";
@@ -1314,7 +1372,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     }else if(raw.length>=3&&simp(raw)!==lastGuess&&!guessing){clearTimeout(autoTimer);autoTimer=setTimeout(()=>guess(true),300);}
     box.hidden=false;
   }
-  $("fEn").addEventListener("input",()=>{clearTimeout(autoTimer);{const v=simp($("fEn").value.trim());const h=v.length>=2?gCacheGet((sample?"ai:":"free:")+v):null;aiSugg=h||[];if(h)lastGuess=v;}$("guessStatus").textContent="";clearTimeout(suggTimer);suggTimer=setTimeout(renderSugg,60);});
+  $("fEn").addEventListener("input",()=>{clearTimeout(autoTimer);{const v=simp($("fEn").value.trim());const h=v.length>=2?gCacheGet((sample?"ai:":"free2:")+v):null;aiSugg=h||[];if(h)lastGuess=v;}$("guessStatus").textContent="";clearTimeout(suggTimer);suggTimer=setTimeout(renderSugg,60);});
   $("fEn").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing&&!editingId){const v=$("fEn").value.trim();if(v.length>=2&&simp(v)!==lastGuess){e.preventDefault();clearTimeout(autoTimer);guess(false);return;}}if(e.key==="Escape")$("sugg").hidden=true;if(e.key==="ArrowDown"){const f=$("suggList").querySelector(".sug");if(f&&!$("sugg").hidden){e.preventDefault();f.focus();}}});
   $("suggList").addEventListener("keydown",e=>{
     const items=[...$("suggList").querySelectorAll(".sug")],i=items.indexOf(document.activeElement);
@@ -1335,7 +1393,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     if(auto&&simp(frag)===lastGuess)return;
     lastGuess=simp(frag);guessing=true;
     const st=$("guessStatus");st.classList.remove("err");
-    const gk=(sample?"ai:":"free:")+simp(frag);const hit=gCacheGet(gk);
+    const gk=(sample?"ai:":"free2:")+simp(frag);const hit=gCacheGet(gk);
     if(hit){aiSugg=hit;st.textContent="À vérifier : clique sur la bonne proposition.";renderSugg();guessing=false;$("guessBtn").disabled=false;return;}
     st.textContent="Recherche…";$("guessBtn").disabled=true;
     const prompt=[
@@ -1352,8 +1410,8 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       if(!Array.isArray(res)||!res.length){res=await freeGuess(frag);usedFree=true;}
       if(simp($("fEn").value)!==simp(frag)){guessing=false;$("guessBtn").disabled=false;st.textContent="";renderSugg();return;}
       aiSugg=Array.isArray(res)?res.filter(x=>x&&typeof x.en==="string").slice(0,6).map(x=>({en:x.en.trim(),sens:(Array.isArray(x.traductions)?x.traductions.map(String).filter(Boolean).join(" · "):String(x.sens||"")),reg:String(x.registre||"").trim().toLowerCase()})):[];
-      if(aiSugg.length)gCacheSet(usedFree?"free:"+simp(frag):gk,aiSugg);
-      st.textContent=aiSugg.length?"À vérifier : clique sur la bonne proposition.":"Aucun mot ni expression correspondant.";
+      if(aiSugg.length)gCacheSet(usedFree?"free2:"+simp(frag):gk,aiSugg);
+      st.textContent=aiSugg.length?"À vérifier : clique sur la bonne proposition.":qtGet(frag)?"":"Aucun mot ni expression correspondant.";
       renderSugg();
     }catch(e){
       st.classList.add("err");
