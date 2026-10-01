@@ -181,7 +181,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .toggle input[type=checkbox]{width:20px;height:20px;accent-color:var(--clay)}
 
 /* icons (masked so they follow the text colour) */
-nav button::before,#mCards::before,#mQuiz::before,#restart::before,#qRestart::before,#reveal::before,#bAgain::before,#bGood::before,#starter::before,#fSubmit::before,#bulkAdd::before,#guessBtn::before,#completeAll::before,#cGo::before,#ctxAdd::before,#qExpl .btn.sm::before,.item .ops .btn::before,#formTitle::before,label.btn[for="cFile"]::before,#bkSave::before,#bkLoad::before,#qNext::after{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+nav button::before,#mCards::before,#mQuiz::before,#restart::before,#qRestart::before,#reveal::before,#bAgain::before,#bGood::before,#starter::before,#fSubmit::before,#bulkAdd::before,#guessBtn::before,#completeAll::before,#cGo::before,#ctxAdd::before,#qExpl .btn.sm::before,.item .ops .btn::before,#formTitle::before,label.btn[for="cFile"]::before,#bkSave::before,#bkLoad::before,#cFree::before,#qNext::after{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
 #mCards{--ic:var(--i-cards)} #mQuiz{--ic:var(--i-quiz)}
 #restart,#qRestart{--ic:var(--i-shuffle)}
 #reveal{--ic:var(--i-eye)} #bAgain{--ic:var(--i-again)} #bGood{--ic:var(--i-check)}
@@ -192,7 +192,7 @@ nav button::before,#mCards::before,#mQuiz::before,#restart::before,#qRestart::be
 #localBanner > span:first-child{flex:1 1 300px}
 .bkBtns{display:flex;flex-wrap:wrap;gap:8px}
 #bkInfo{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
-#bkSave{--ic:var(--i-download)} #bkLoad{--ic:var(--i-upload)}
+#bkSave{--ic:var(--i-download)} #cFree{--ic:var(--i-leaf)} #bkLoad{--ic:var(--i-upload)}
 label.btn[for="cFile"]{--ic:var(--i-book)}
 #xGo::before{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--i-sparkle) center/contain no-repeat;mask:var(--i-sparkle) center/contain no-repeat}
 label.btn[for="cImg"]::before{content:"";flex:none;width:1.2em;height:1.2em;background:currentColor;-webkit-mask:var(--i-eye) center/contain no-repeat;mask:var(--i-eye) center/contain no-repeat}
@@ -478,7 +478,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   <section class="panel" id="p-ctx" hidden>
     <h2>Vocabulaire d’un thème</h2>
     <p class="muted" style="margin:0;font-size:14px">Décris une situation : l’outil te propose 30 verbes, expressions ou mots utiles, différents à chaque fois. Tu coches ceux que tu veux garder.</p>
-    <div id="ctxOff" class="iaHint iaHintBig" hidden><span><b>Sans clé IA</b>, l’outil propose des mots seuls, traduits automatiquement, sans expressions ni exemples. <b>Facultatif</b> : pour une meilleure expérience, avec 30 éléments variés (verbes, expressions, mots), des exemples et des nuances, ajoute une clé IA.</span><button type="button" class="btn primary iaGo">Ajouter une clé IA</button></div>
+    <div id="ctxOff" class="iaHint iaHintBig" hidden><span><b>Sans clé IA</b>, l’outil propose des verbes, expressions et mots du thème, traduits automatiquement, sans exemples ni nuances. <b>Facultatif</b> : pour une meilleure expérience, avec 30 éléments variés (verbes, expressions, mots), des exemples et des nuances, ajoute une clé IA.</span><button type="button" class="btn primary iaGo">Ajouter une clé IA</button></div>
     <form id="ctxForm" autocomplete="off">
       <label>Thème
         <input type="text" id="cTheme" required placeholder="ex. entretien d’embauche en logistique · lettre d’excuse au voisin · épisode au tribunal">
@@ -492,7 +492,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
           <input type="text" id="ctxSrc" list="series" placeholder="par défaut : le thème">
         </label>
       </div>
-      <div class="row"><button class="btn primary" type="submit" id="cGo">Proposer 30 éléments</button></div>
+      <div class="row"><button class="btn primary" type="submit" id="cGo">Proposer 30 éléments</button><button class="btn" type="button" id="cFree" hidden>Proposer sans IA</button></div>
       <div class="status" id="ctxStatus" role="status"></div>
     </form>
     <div id="ctxResultsSlot"></div>
@@ -1047,6 +1047,9 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
         const busy=r.status>=500||r.status===529||BUSY.test(m);
         if(busy&&attempt<2){await new Promise(z=>setTimeout(z,2000*(attempt+1)));continue;}
         if(busy)throw {code:"busy",text:"Le service est surchargé en ce moment. Réessaie dans quelques minutes."};
+        if(r.status===429){const w=m.match(/try again in\s*(?:(\d+)m)?\s*([\d.]+)s/i);const sec=w?(+(w[1]||0))*60+parseFloat(w[2]):NaN;
+          if(sec>=0&&sec<=30&&attempt<3){await new Promise(z=>setTimeout(z,Math.ceil(sec*1000)+500));continue;}
+          if(/per (minute|second)|\bTPM\b|\bRPM\b|try again in/i.test(m))throw {code:"rate_limited",text:"Limite par minute atteinte chez ce service. Attends une minute puis réessaie."};}
         if(r.status===429){
           const raw=m.slice(0,220);
           if(/insufficient_quota|billing|exceeded your current quota|quota|limit: ?0|free.?tier|resource.?exhausted|credit/i.test(m)){
@@ -1233,7 +1236,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     }
   }
   function applySampleUI(){
-    $("autoWrap").hidden=false;$("ctxOff").hidden=!!sample;$("cGo").disabled=false;document.querySelectorAll(".iaHint").forEach(e=>e.hidden=!!sample);
+    $("autoWrap").hidden=false;$("ctxOff").hidden=!!sample;$("cGo").disabled=false;$("cFree").hidden=!sample;document.querySelectorAll(".iaHint").forEach(e=>e.hidden=!!sample);
     renderList();
   }
 
@@ -1553,6 +1556,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
   let ctxSrc="ctx";
   $("ctxForm").addEventListener("submit",e=>{e.preventDefault();runCtx(false);});
   $("xGo").addEventListener("click",()=>runCtx(true));
+  $("cFree").addEventListener("click",()=>{const th=$("cTheme").value.trim();if(!th){$("cTheme").focus();return;}ctxSrc="ctx";$("ctxResultsSlot").appendChild($("ctxResults"));freeTheme(th,$("ctxStatus"),false);});
   /* ---------- tolerant JSON lists from the AI ---------- */
   function parseList(t){
     t=String(t||"").replace(/```(?:json)?/gi,"").trim();
@@ -1590,7 +1594,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     if(!sample)return freeTheme(theme,st,fromAdd);
     if(text.length>12000){text=text.slice(0,12000);cut=true;}
     const level=fromAdd?"tous niveaux, du plus simple (A1) au plus avancé (C2), et indique le niveau de chaque élément dans note":$("cLevel").value;
-    const known=words.map(w=>w.en).slice(0,300);
+    const known=words.map(w=>w.en).slice(0,150);
     const hKey="carnetvo.vu."+simp(theme).slice(0,60);
     let seenBefore=[];try{seenBefore=JSON.parse(lsGet(hKey)||"[]");}catch(e){}
     seenBefore=seenBefore.slice(-300);
@@ -1603,7 +1607,7 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
         : "Propose le vocabulaire le plus utile pour cette situation (verbes, expressions, mots), naturel et réellement employé par des anglophones. Ne cite aucune réplique réelle de film ou de série.",
       part,
       known.length?"Évite ceux qu'elle connaît déjà : "+JSON.stringify(known)+".":"",
-      seenBefore.length?"Évite aussi ceux déjà proposés lors des sessions précédentes : "+JSON.stringify(seenBefore)+".":"",
+      seenBefore.length?"Évite aussi ceux déjà proposés lors des sessions précédentes : "+JSON.stringify(seenBefore.slice(-150))+".":"",
       "Pour chaque élément : en (forme de base), type (verbe | expression | mot), traductions (ses traductions françaises usuelles dans des contextes différents, 5 au maximum, de la plus courante à la moins courante, chacune sous la forme {\"fr\": la traduction, \"contexte\": dans quel cas on l’emploie, en 2 à 5 mots}), pt (portugais du Brésil), registre (un mot : courant, familier, argot, vulgaire, soutenu, technique), exemple (phrase courte en anglais, dans ce contexte), note (nuance utile en français, max 15 mots, ou \"\").",
       "N'invente rien : si tu hésites sur une traduction, dis-le dans note.",
       "Réponds uniquement par un tableau JSON de ces objets."
@@ -1632,10 +1636,12 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       }));
       const seenSet=new Set(seenBefore.map(simp));
       cands=cands.filter(c=>!seenSet.has(simp(c.en)));
+      let topped=0;
+      if(partial&&cands.length<30){try{st.textContent="Complément sans IA…";const skip=new Set([...cands.map(c=>simp(c.en)),...seenSet,...have]);const more=await freeCands(await freeItems(theme,text,30-cands.length,skip),st);more.forEach(c=>{c.dup=false;c.keep=true;});topped=more.length;cands=cands.concat(more);}catch(e){}}
       lsSet(hKey,JSON.stringify([...seenBefore,...cands.map(c=>c.en)].slice(-300)));
       if(!cands.length){st.textContent=fromAdd?"Rien trouvé de nouveau dans ce texte. Colle un extrait plus long.":"Rien trouvé. Précise le thème.";}
       else{
-        st.textContent=(cut?"Texte coupé à 12 000 caractères. ":"")+(partial?"Une partie de la liste n’a pas pu être préparée : relance pour en avoir plus.":"");
+        st.textContent=(cut?"Texte coupé à 12 000 caractères. ":"")+(partial?(topped?"L’IA n’a préparé qu’une partie de la liste : "+topped+" éléments ont été ajoutés sans IA.":"Une partie de la liste n’a pas pu être préparée : relance pour en avoir plus."):"");
         $("ctxMode").textContent=text?"tiré de ton texte":"vocabulaire lié au thème";
         $("ctxMode").className="chip "+(text?"ok":"warn");
         $("ctxAddStatus").textContent="";
@@ -1646,6 +1652,9 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
       const m={not_granted:"Clé IA refusée : vérifie-la dans le Guide.",rate_limited:"Trop de demandes. Réessaie dans quelques minutes.",invalid_json:"Réponse illisible. Réessaie.",prompt_too_large:"Texte trop long. Colle un extrait plus court.",session_expired:"Reconnecte-toi puis réessaie."};
       st.textContent=m[err&&err.code]||(err&&err.text)||"La génération a échoué. Réessaie plus tard.";
       if(err&&(err.code==="not_granted"||err.code==="sampling_disabled")){sample=null;applySampleUI();}
+      const why={rate_limited:"limite par minute atteinte",quota:"limite gratuite atteinte",busy:"service surchargé",network:"service injoignable",invalid_json:"réponse illisible",not_granted:"clé refusée",model:"modèle indisponible"}[err&&err.code]||"erreur du service";
+      $("cGo").disabled=false;$("xGo").disabled=false;
+      return freeTheme(theme,st,fromAdd,"L’IA est indisponible pour le moment ("+why+") : voici une liste préparée sans IA.");
     }
     $("cGo").disabled=false;$("xGo").disabled=false;
   }
@@ -1657,58 +1666,108 @@ h3{font:600 19px/1.3 var(--display);margin:4px 0 0}
     if(/^B1/.test(v))return [700,8000];if(/^B2/.test(v))return [1500,13000];
     if(/^C/.test(v))return [3000,1e9];return [200,1e9];
   }
-  async function freeTheme(theme,st,fromAdd){
-    let text=fromAdd?$("cText").value.trim().slice(0,12000):"";
+  /* theme vocabulary bank (works without AI) */
+  const BANK={"Entretien d’embauche": "to apply for a job|to hire|to shortlist|to interview someone|to highlight one's strengths|to follow up|to get back to someone|to turn down an offer|to accept an offer|to report to someone|to be in charge of|to start right away|to work under pressure|tell me about yourself|a team player|a good fit|the job description|a job opening|hands-on experience|a strong background in|career goals|strengths and weaknesses|a cover letter|the hiring manager|salary expectations|notice period|résumé|applicant|recruiter|probation", "Négocier son salaire": "to negotiate a salary|to ask for a raise|to get a raise|to make a counteroffer|to meet halfway|to justify a request|to be underpaid|to settle on|to back something up with figures|to bring up the topic|to drive a hard bargain|a pay rise|a salary range|the market rate|fringe benefits|a signing bonus|a performance review|take-home pay|before tax|a fair offer|room for negotiation|the bottom line|that's my final offer|what's your budget|bonus|payslip|pension|increase|perks|overtime", "Réunion d’équipe": "to schedule a meeting|to chair a meeting|to run late|to take notes|to go over the agenda|to bring up an issue|to follow up on|to touch base|to wrap up|to circle back|to brainstorm|to delegate|to assign a task|to reach a consensus|to put on hold|any other business|the minutes|action items|on the same page|let's get started|a quick update|moving forward|to keep it short|deadline|agenda|stakeholder|update|teammate|workload|priority", "Présenter un projet à sa hiérarchie": "to pitch an idea|to present a proposal|to walk someone through|to outline|to break down|to back up|to secure funding|to get buy-in|to roll out|to scale up|to address concerns|to measure results|to sign off on|the big picture|a game changer|return on investment|key performance indicators|a timeline|low-hanging fruit|to think outside the box|at this stage|in a nutshell|next steps|milestone|budget|forecast|deliverable|roadmap|slide deck|stakeholders", "Logistique et entrepôt": "to ship|to deliver|to dispatch|to load|to unload|to store|to stock up|to run out of stock|to track a parcel|to pick and pack|to restock|to operate a forklift|to label|out of stock|in stock|on schedule|behind schedule|lead time|supply chain|just in time|a delivery slot|a loading dock|a bill of lading|warehouse|pallet|forklift|shipment|inventory|carrier|freight", "Écrire un e-mail professionnel": "to reach out|to follow up|to get back to someone|to look forward to|to attach|to forward|to cc someone|to reply all|to confirm receipt|to clarify|to apologize for the delay|to keep someone posted|I hope this email finds you well|please find attached|as discussed|at your earliest convenience|let me know if you have any questions|kind regards|best regards|thank you in advance|for your reference|a gentle reminder|as per our conversation|subject line|attachment|recipient|signature|request|draft|inbox", "Réclamation client": "to complain|to file a complaint|to return an item|to ask for a refund|to get a refund|to exchange|to escalate|to compensate|to replace|to look into|to sort out|to deal with|to speak to a manager|a faulty product|damaged on arrival|not as described|a full refund|a store credit|under warranty|customer service|I'm not satisfied with|it doesn't work|out of pocket|refund|receipt|warranty|defect|complaint|voucher|policy", "Appel au service client": "to call customer service|to hold on|to put someone on hold|to transfer a call|to hang up|to call back|to cancel a subscription|to update one's details|to reset a password|to troubleshoot|to report a problem|to confirm one's identity|to be on hold|the line is busy|bear with me|could you spell that|account number|reference number|a dropped call|I'll look into it|let me check that for you|is there anything else|subscription|invoice|technician|outage|billing|agent|complaint|extension", "Lettre d’excuse au voisin": "to apologize|to make amends|to own up to|to disturb|to keep someone up|to make it up to someone|to take responsibility|to keep the noise down|to let someone know in advance|to overstep|to patch things up|to smooth things over|I'm truly sorry|it won't happen again|please accept my apologies|it got out of hand|it slipped my mind|I should have|out of line|a lapse in judgment|no hard feelings|to hold no grudge|inconvenience|considerate|regrettable|neighborly|heartfelt|goodwill|noise|apology", "Conflit avec un voisin": "to complain about|to confront|to argue|to settle a dispute|to call the police|to file a noise complaint|to turn down the music|to block the driveway|to trespass|to keep to oneself|to clear the air|to calm down|to mind one's own business|the last straw|to get on someone's nerves|to be at odds with|enough is enough|let's talk it over|the common areas|the property line|landlord|building manager|noise|fence|hedge|nuisance|dispute|mediation|parking spot|quarrel", "Location d’appartement": "to rent|to rent out|to lease|to sign a lease|to move in|to move out|to view a flat|to pay the deposit|to sublet|to renew a lease|to give notice|to look for a place|furnished|unfurnished|bills included|the security deposit|a one-bedroom apartment|the rent is due|a lease agreement|wear and tear|landlord|tenant|roommate|deposit|utilities|lease|studio|neighborhood|viewing|real estate agent", "Chez le médecin": "to make an appointment|to see a doctor|to feel sick|to run a fever|to have a sore throat|to examine|to prescribe|to take someone's blood pressure|to get a check-up|to recover|to get over|to come down with|to feel dizzy|under the weather|a runny nose|a stomach ache|a sick note|side effects|a follow-up appointment|symptoms|prescription|diagnosis|cough|rash|check-up|allergy|painkiller|flu|GP|waiting room", "À la pharmacie": "to pick up a prescription|to fill a prescription|to take medicine|to take with food|to recommend|to relieve pain|to apply a cream|to swallow|to dissolve|to run out of|to refill|over the counter|twice a day|before meals|on an empty stomach|side effects|keep out of reach of children|a cough syrup|a pain reliever|cold and flu|pharmacist|tablet|capsule|dosage|ointment|bandage|drops|generic|prescription|allergy", "Urgences à l’hôpital": "to call an ambulance|to faint|to bleed|to break a leg|to sprain an ankle|to pass out|to be admitted|to be discharged|to stitch up|to x-ray|to triage|to wait to be seen|to stabilize|it's an emergency|the waiting room|a broken arm|life-threatening|first aid|chest pain|out of danger|in critical condition|the ER|stretcher|injury|wound|stitches|nurse|surgeon|ambulance|bruise", "À l’école avec les enfants": "to drop off|to pick up|to sign up for|to hand in homework|to fall behind|to catch up|to get good grades|to pay attention|to skip class|to be on time|to pack a lunch|to bully|to praise|the school run|the school year|parents' evening|a report card|a field trip|recess|the principal|after-school activities|homework|classmate|teacher|backpack|timetable|uniform|playground|grade|lunchbox", "Réunion parents-professeurs": "to discuss progress|to keep up with|to fall behind|to struggle with|to improve|to encourage|to set goals|to work on|to stand out|to participate|to get along with|to behave|to be distracted|a report card|areas for improvement|a strong student|room for improvement|at grade level|extra help|a learning difficulty|attention span|grades|behavior|effort|homework|tutor|feedback|progress|strengths|weaknesses", "Jouer avec des enfants": "to play hide and seek|to take turns|to share|to build|to pretend|to cheat|to win|to lose|to count to ten|to play tag|to make believe|to tidy up|to calm down|it's your turn|ready or not, here I come|no fair|let's play|time out|game over|a board game|a bedtime story|playground|toy|puzzle|swing|slide|crayons|blocks|playdate|sandbox", "Au restaurant": "to book a table|to order|to recommend|to split the bill|to leave a tip|to take away|to be allergic to|to send back|to share a dish|to ask for the check|to treat someone|to be full|to grab a bite|the specials|a table for two|could we get the check|is service included|medium rare|still or sparkling|for here or to go|on the house|starter|main course|dessert|waiter|bill|tip|reservation|dish|menu", "Faire les courses": "to go grocery shopping|to make a shopping list|to stock up on|to run out of|to compare prices|to pay by card|to pay cash|to bag|to weigh|to return|to check out|to be on sale|to shop around|buy one get one free|on special offer|the best before date|a shopping cart|the checkout|self-checkout|the aisle|a loyalty card|groceries|cashier|discount|bargain|produce|frozen food|basket|brand|receipt", "Cuisine et recettes": "to chop|to slice|to dice|to peel|to stir|to whisk|to boil|to simmer|to fry|to bake|to roast|to grill|to season|to preheat the oven|to bring to the boil|to drain|to taste|a pinch of salt|golden brown|until tender|set aside|from scratch|serve hot|leftovers|ingredient|recipe|saucepan|oven|cutting board|frying pan", "À l’aéroport": "to check in|to drop off a bag|to go through security|to board|to take off|to land|to miss a flight|to catch a flight|to be delayed|to be cancelled|to collect one's luggage|to declare|to clear customs|carry-on luggage|checked baggage|a boarding pass|the departure lounge|a gate change|final call|a connecting flight|a layover|window or aisle|excess baggage|passport|customs|terminal|gate|delay|jet lag|runway", "À l’hôtel": "to book a room|to check in|to check out|to stay for|to upgrade|to ask for a late checkout|to order room service|to cancel a booking|to complain about the room|to settle the bill|to leave one's luggage|to make a reservation|a double room|a single room|breakfast included|a wake-up call|do not disturb|fully booked|the front desk|a sea view|all inclusive|a key card|receptionist|suite|amenities|lobby|housekeeping|vacancy|deposit|towel", "Demander son chemin": "to get lost|to ask for directions|to turn left|to turn right|to go straight ahead|to cross the street|to take the first left|to follow the signs|to walk past|to head towards|to get off at|to change trains|excuse me|how do I get to|is it far from here|within walking distance|on the corner|next to|opposite|at the traffic lights|at the end of the street|you can't miss it|crossroads|roundabout|block|map|landmark|subway|bus stop|sidewalk", "Location de voiture": "to rent a car|to pick up the car|to drop off the car|to fill up the tank|to return with a full tank|to take out insurance|to scratch|to dent|to break down|to get a flat tire|to park|to drive on the left|to pay a deposit|a driver's license|a manual car|an automatic|unlimited mileage|full coverage|a one-way rental|roadside assistance|the speed limit|a parking ticket|rental agreement|mileage|deposit|fuel|insurance|gearbox|toll|spare tire", "Rendez-vous amoureux": "to ask someone out|to go on a date|to hit it off|to flirt|to have a crush on|to fall for|to make a move|to split the bill|to stand someone up|to text back|to take it slow|to ghost someone|to be into someone|a blind date|a second date|love at first sight|out of my league|butterflies in my stomach|to play hard to get|a dating app|chemistry|date|crush|match|relationship|partner|romantic|single|sweetheart|compliment", "Dispute de couple": "to argue|to fight|to make up|to apologize|to blame|to shout|to calm down|to talk things through|to walk out|to give someone the silent treatment|to compromise|to forgive|to take sides|it's not my fault|you never listen|I need some space|let's not fight|we need to talk|to have a row|to get on each other's nerves|to sleep on it|the last straw|argument|jealousy|trust|misunderstanding|apology|resentment|tension|grudge", "Rupture": "to break up|to split up|to dump someone|to call it off|to move on|to get over someone|to cheat on|to drift apart|to end things|to take a break|to get back together|to heal|to let go|it's not you, it's me|we want different things|a clean break|to break someone's heart|to be on a break|plenty more fish in the sea|single again|closure|heartbroken|ex|breakup|heartbreak|rebound|loneliness|divorce|custody|regret", "Soirée entre amis": "to throw a party|to hang out|to catch up|to have a drink|to grab dinner|to invite someone over|to show up|to bring something|to stay up late|to crash at someone's place|to call it a night|to have a blast|to chill|let's get together|the more the merrier|a night out|a get-together|a round of drinks|to let one's hair down|to have a great time|cheers|BYOB|host|guest|snacks|playlist|toast|housewarming|nightlife|hangover", "Petite discussion (small talk)": "to chat|to catch up|to make small talk|to break the ice|to bump into someone|to keep in touch|to run into|to get going|how's it going|what have you been up to|long time no see|not much|nice weather today|how was your weekend|any plans for the weekend|it was nice talking to you|take care|see you around|by the way|I've got to run|small talk|chit-chat|neighbor|colleague|weekend|weather|commute|hobby|vacation|news", "Réseaux sociaux": "to post|to share|to like|to comment|to follow|to unfollow|to tag someone|to go viral|to block|to scroll|to upload|to livestream|to trend|to go live|to slide into someone's DMs|a follower count|a hashtag|a story|a reel|the comment section|an influencer|clickbait|engagement rate|feed|caption|notification|filter|algorithm|content creator|selfie", "Technologie et informatique": "to download|to upload|to install|to update|to back up|to log in|to log out|to reset|to crash|to reboot|to troubleshoot|to sign up|to sync|to plug in|a software update|a hard drive|cloud storage|a strong password|a bug fix|artificial intelligence|user-friendly|up to date|out of memory|screenshot|browser|settings|device|app|keyboard|laptop", "Banque et argent": "to open an account|to withdraw money|to deposit|to transfer money|to pay off|to borrow|to lend|to save up|to take out a loan|to be in the red|to overdraw|to budget|to invest|a bank statement|a credit card|a direct debit|an interest rate|a mortgage|a savings account|a checking account|to make ends meet|to break the bank|broke|loan|debt|balance|PIN|fee|ATM|currency", "Impôts et administration": "to fill in a form|to file a tax return|to pay taxes|to claim a refund|to apply for|to submit|to renew|to sign|to attach|to deduct|to be eligible for|to meet the deadline|to make an appointment|proof of address|an ID card|a residence permit|a tax bracket|a tax return|the deadline|red tape|paperwork|a social security number|form|office|appointment|certificate|stamp|fine|document|payslip", "Créer son entreprise": "to start a business|to set up a company|to launch|to raise funds|to pitch|to hire|to scale|to break even|to make a profit|to go bankrupt|to register a company|to find investors|to brainstorm|a business plan|a start-up|cash flow|a target market|a niche|a side hustle|a business model|to be one's own boss|trial and error|word of mouth|founder|investor|revenue|competitor|brand|partner|shareholder", "Vendre en ligne (e-commerce)": "to sell online|to list a product|to ship|to fulfill an order|to track an order|to process a payment|to offer free shipping|to restock|to upsell|to optimize|to set up a store|to drive traffic|to convert|an online store|a shopping cart|the checkout page|a product page|customer reviews|a return policy|a discount code|out of stock|a best seller|an abandoned cart|order|shipping|refund|marketplace|listing|inventory|dropshipping", "Marketing et publicité": "to advertise|to promote|to launch a campaign|to target|to reach|to engage|to brand|to rebrand|to go viral|to boost|to track results|to measure|to stand out|a target audience|brand awareness|a marketing strategy|word of mouth|a call to action|a press release|a slogan|return on investment|to raise awareness|market research|ad|campaign|influencer|logo|budget|competitor|consumer", "Mode et vêtements": "to try on|to dress up|to dress down|to fit|to suit|to match|to go with|to shop for|to return|to alter|to wear|to put on|to take off|in fashion|out of fashion|a fitting room|what size are you|it suits you|on trend|a casual outfit|a dress code|second-hand|outfit|sleeve|collar|size|fabric|sneakers|jacket|accessories", "Sport et salle de gym": "to work out|to warm up|to cool down|to stretch|to lift weights|to train|to sign up for a gym|to burn calories|to get in shape|to build muscle|to lose weight|to break a sweat|to keep fit|a personal trainer|a gym membership|a training session|reps and sets|no pain, no gain|out of breath|a rest day|treadmill|dumbbells|workout|cardio|abs|locker room|routine|protein|stamina|sore", "Football": "to score a goal|to kick|to pass|to shoot|to tackle|to defend|to attack|to win|to lose|to draw|to be sent off|to get a yellow card|to take a penalty|a free kick|extra time|a penalty shootout|the final whistle|a hat trick|home and away|the offside rule|a clean sheet|an own goal|goalkeeper|referee|striker|midfielder|defender|match|league|fans", "Séries policières": "to investigate|to arrest|to interrogate|to search|to frame someone|to get away with|to confess|to track down|to solve a case|to tip off|to cover up|to stake out|to go undercover|a crime scene|a suspect|an alibi|a lead|a cold case|under arrest|you have the right to remain silent|a search warrant|a red herring|evidence|witness|detective|motive|fingerprint|informant|victim|murder", "Séries judiciaires (tribunal)": "to sue|to testify|to object|to plead guilty|to plead not guilty|to cross-examine|to overrule|to sustain|to settle out of court|to appeal|to convict|to acquit|to sentence|objection|your honor|beyond reasonable doubt|the burden of proof|a hung jury|a plea deal|contempt of court|case closed|the jury is out|lawyer|judge|jury|verdict|witness|defendant|prosecutor|trial", "Séries médicales": "to operate|to diagnose|to resuscitate|to intubate|to admit|to discharge|to page someone|to scrub in|to flatline|to run tests|to rule out|to stabilize|to lose a patient|code blue|on call|a second opinion|the operating room|vital signs|a blood transfusion|the prognosis|a medical record|the attending physician|surgeon|resident|intern|nurse|patient|ward|scalpel|ER", "Séries d’entreprise": "to take over|to buy out|to fire|to promote|to merge|to backstab|to climb the corporate ladder|to close a deal|to call the shots|to cut corners|to step down|to blackmail|to make a power move|a hostile takeover|the board of directors|a corner office|the bottom line|a golden parachute|insider trading|a conflict of interest|behind closed doors|the boardroom|CEO|shareholder|merger|deal|rival|assistant|stock|empire", "Comédie romantique": "to fall in love|to have a crush on|to bump into|to fall for|to propose|to get engaged|to sweep someone off their feet|to make a scene|to run after|to win someone back|to have second thoughts|to set someone up|love at first sight|meant to be|a happy ending|the one|head over heels|a meet-cute|best friend|wedding|kiss|soulmate|misunderstanding|date|bride|groom|chemistry|romance|flirt|heartthrob", "Films d’action": "to chase|to escape|to blow up|to shoot|to take cover|to fight back|to break in|to break out|to hijack|to rescue|to track down|to sneak in|to run for one's life|a car chase|a getaway car|hands up|freeze|get down|the bad guy|a narrow escape|against all odds|a ticking bomb|hostage|villain|hero|explosion|weapon|agent|mission|rooftop", "Science-fiction": "to travel through time|to land|to take off|to explore|to invade|to colonize|to beam up|to clone|to hack|to self-destruct|to evolve|to launch|to orbit|a spaceship|outer space|a parallel universe|artificial intelligence|the speed of light|a time machine|a dystopian future|first contact|alien|planet|galaxy|robot|android|astronaut|crew|mission|cyborg", "Émotions et sentiments": "to feel|to cheer up|to calm down|to freak out|to burst into tears|to lose one's temper|to get upset|to be fed up with|to look forward to|to miss someone|to be proud of|to feel down|over the moon|on cloud nine|a broken heart|butterflies in one's stomach|scared to death|to keep calm|mixed feelings|at ease|on edge|anger|joy|sadness|fear|anxiety|relief|jealousy|gratitude|embarrassment", "Météo et saisons": "to rain|to pour|to snow|to freeze|to melt|to clear up|to warm up|to cool down|to get dark|to forecast|to drizzle|to blow|it's raining cats and dogs|a heat wave|a cold snap|the weather forecast|sunny spells|below zero|a breath of fresh air|a storm warning|humid|chilly|breeze|thunderstorm|fog|spring|autumn|season|sleet|frost", "Politique et actualité": "to vote|to run for office|to elect|to campaign|to debate|to resign|to pass a law|to protest|to impose|to ban|to report|to break the news|to make headlines|breaking news|a general election|a polling station|the opposition|a press conference|a landslide victory|public opinion|fake news|a coalition government|government|candidate|policy|election|minister|parliament|headline|journalist", "Environnement et climat": "to recycle|to reduce|to reuse|to pollute|to save energy|to cut emissions|to go green|to protect|to waste|to compost|to plant trees|to raise awareness|to phase out|climate change|global warming|renewable energy|a carbon footprint|greenhouse gases|fossil fuels|endangered species|eco-friendly|single-use plastic|sustainable|pollution|drought|flood|wildlife|deforestation|emissions|solar panel"};
+  const FR_STOP=new Set("les des une avec pour dans sur aux chez son ses mon mes ton tes notre votre leur leurs entre par".split(" "));
+  const typeOf=s=>/^to /.test(s)?"verbe":/\s/.test(s)?"expression":"mot";
+  function bankFor(theme){
+    const raw=noAcc(theme).trim(),toks=raw.split(/[\s,;'’()-]+/).filter(t=>t.length>=3&&!FR_STOP.has(t));
+    const scored=THEMES.map(([t,k])=>{
+      const nt=noAcc(t),hay=noAcc(t+" "+k);let n=nt===raw?100:0;
+      if(nt!==raw&&(raw.includes(nt)||nt.includes(raw)))n+=5;
+      toks.forEach(x=>{if(hay.includes(x))n++;});
+      return [t,n];
+    }).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).filter((x,i)=>i===0||(i===1&&x[1]>=2)).slice(0,2);
+    const mix=l=>{const g={verbe:[],expression:[],mot:[]};l.forEach(s=>g[typeOf(s)].push(s));const o=[];for(let i=0;o.length<l.length;i++){if(g.verbe[2*i])o.push(g.verbe[2*i]);if(g.verbe[2*i+1])o.push(g.verbe[2*i+1]);if(g.expression[2*i])o.push(g.expression[2*i]);if(g.expression[2*i+1])o.push(g.expression[2*i+1]);if(g.mot[i])o.push(g.mot[i]);}return o;};
+    const best=scored[0]&&THEMES.find(x=>x[0]===scored[0][0]);
+    if(best){const kw=new Set(noAcc(best[1]).split(" "));
+      scored.push(...THEMES.filter(([t])=>!scored.some(s=>s[0]===t)).map(([t,k])=>[t,noAcc(k).split(" ").filter(x=>kw.has(x)).length]).filter(x=>x[1]>=2).sort((a,b)=>b[1]-a[1]).slice(0,3));}
+    return scored.flatMap(([t])=>mix(String(BANK[t]||"").split("|").filter(Boolean)));
+  }
+  async function trAlts(t,tl){
+    if(tl==="fr"){try{const v=await quickTr(t);if(v.length)return v;}catch(e){}}
+    try{
+      const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl="+tl+"&dt=t&dt=bd&dj=1&q="+encodeURIComponent(t));
+      if(r.ok){const j=await r.json();const main=(j.sentences||[]).map(s=>s&&s.trans||"").join("").trim();
+        const out=[];[main,...(j.dict||[]).flatMap(d=>d&&d.terms||[])].forEach(x=>{x=String(x||"").trim();if(x&&!out.some(y=>y.toLowerCase()===x.toLowerCase()))out.push(x);});
+        if(out.length)return out.slice(0,4);}
+    }catch(e){}
+    try{const x=await freeTranslate(t,tl==="pt"?"pt-BR":tl);if(x)return [x];}catch(e){}
+    return [];
+  }
+  async function themeToEn(theme){
+    try{const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=en&dt=t&dj=1&q="+encodeURIComponent(theme));
+      if(r.ok){const s=((await r.json()).sentences||[]).map(x=>x&&x.trans||"").join("").trim();if(s)return s;}}catch(e){}
+    try{const r=await fetch("https://api.mymemory.translated.net/get?q="+encodeURIComponent(theme)+"&langpair=fr|en").then(r=>r.json());
+      const mt=(r.matches||[]).find(m=>m&&m["created-by"]==="MT!");const s=(mt&&mt.translation)||(r.responseData&&r.responseData.translatedText);if(s)return s;}catch(e){}
+    return theme;
+  }
+  async function freeItems(theme,text,need,skip){
+    const pick=[];
+    const add=(en,type)=>{en=String(en||"").trim();const k=simp(en);if(!k||skip.has(k)||pick.length>=need)return;skip.add(k);pick.push({en,type:type||typeOf(en)});};
+    const [lo,hi]=text?[0,1e9]:levelRange();
+    const okRank=w=>{const r=RANK.has(w)?RANK.get(w):20000;return r>=lo&&r<=hi;};
+    if(text){
+      const low=" "+text.toLowerCase().replace(/[’]/g,"'")+" ";
+      IDIOMS.forEach(i=>{const c=i.toLowerCase().replace(/^to /,"").replace(/ (someone|something|sb|sth)\b/g,"");if(c.length>5&&new RegExp("[^a-z]"+c.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[^a-z]").test(low))add(i,"expression");});
+      const cnt=new Map();
+      (text.toLowerCase().match(/[a-z][a-z'-]{2,}/g)||[]).forEach(w=>{w=w.replace(/'s$/,"");if(w.length>=4&&okRank(w))cnt.set(w,(cnt.get(w)||0)+1);});
+      [...cnt.entries()].sort((a,b)=>b[1]-a[1]||(RANK.get(a[0])||2e4)-(RANK.get(b[0])||2e4)).forEach(([w])=>add(w,"mot"));
+      return pick;
+    }
+    bankFor(theme).forEach(s=>add(s));
+    if(pick.length>=need)return pick;
+    const en=(await themeToEn(theme)).replace(/[^A-Za-z' -]/g," ").trim();
+    const get=u=>fetch(u).then(r=>r.ok?r.json():[]).catch(()=>[]);
+    const STOP=new Set("the a an of at to in on for with and or my your our his her their from by as is are be".split(" "));
+    const keys=en.toLowerCase().replace(/'s\b/g,"").split(/\s+/).filter(w=>w.length>2&&!STOP.has(w)).slice(0,3);
+    if(!keys.length)keys.push(en.toLowerCase());
+    const jobs=[];
+    keys.forEach(k=>{const topics=keys.filter(x=>x!==k).join(",");const tp=topics?"&topics="+encodeURIComponent(topics):"";
+      jobs.push(get("https://api.datamuse.com/words?rel_trg="+encodeURIComponent(k)+tp+"&max=40"));
+      jobs.push(get("https://api.datamuse.com/words?ml="+encodeURIComponent(k)+tp+"&max=40"));});
+    const lists=await Promise.all(jobs);
+    const seen=new Set(keys);const maxLen=Math.max(0,...lists.map(l=>l.length));
+    for(let i=0;i<maxLen;i++)lists.forEach(l=>{const x=l[i];const w=x&&x.word;if(!w||seen.has(w)||!/^[a-z][a-z' -]*$/.test(w))return;seen.add(w);
+      const single=!/\s/.test(w);if(single&&!okRank(w))return;if(!single&&!keys.some(k=>w.includes(k)))return;
+      add(w,single?"mot":"expression");});
+    return pick;
+  }
+  async function freeCands(list,st){
+    let done=0;const out=[];
+    const one=async c=>{
+      const verb=/^to /i.test(c.en);
+      let [fr,pt]=await Promise.all([trAlts(c.en,"fr").catch(()=>[]),trAlts(c.en,"pt").catch(()=>[])]);
+      if(verb){fr=fr.map(x=>x.replace(/^(pour|afin de)\s+/i,""));pt=pt.map(x=>x.replace(/^para\s+/i,""));}
+      done++;if(st)st.textContent="Traduction… "+done+"/"+list.length;
+      const f=fr.slice(0,4);
+      return {en:c.en,type:c.type,trs:f.map(x=>({fr:x,ctx:""})),fr:f.join(", "),pt:pt[0]||"",registre:"",exemple:"",note:""};
+    };
+    for(let i=0;i<list.length;i+=6)out.push(...await Promise.all(list.slice(i,i+6).map(one)));
+    return out;
+  }
+  async function freeTheme(theme,st,fromAdd,note){
+    const text=fromAdd?$("cText").value.trim().slice(0,12000):"";
     const have=new Set(words.map(w=>simp(w.en)));
     const hKey="carnetvo.vu."+simp(theme).slice(0,60);
     let seenBefore=[];try{seenBefore=JSON.parse(lsGet(hKey)||"[]");}catch(e){}
-    const seenSet=new Set(seenBefore.map(simp));
-    const [lo,hi]=fromAdd?[0,1e9]:levelRange();
-    const okRank=w=>{const r=RANK.has(w)?RANK.get(w):20000;return r>=lo&&r<=hi;};
-    $("cGo").disabled=true;$("xGo").disabled=true;$("ctxResults").hidden=true;st.classList.remove("err");
-    let pick=[];
+    $("cGo").disabled=true;$("xGo").disabled=true;$("cFree").disabled=true;$("ctxResults").hidden=true;st.classList.remove("err");
     try{
-      if(text){
-        st.textContent="Analyse du texte…";
-        const low=" "+text.toLowerCase().replace(/[’]/g,"'")+" ";
-        IDIOMS.forEach(i=>{const c=i.toLowerCase().replace(/^to /,"").replace(/ (someone|something|sb|sth)\b/g,"");if(c.length>5&&new RegExp("[^a-z]"+c.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[^a-z]").test(low))pick.push({en:i,type:"expression"});});
-        const cnt=new Map();
-        (text.toLowerCase().match(/[a-z][a-z'-]{2,}/g)||[]).forEach(w=>{w=w.replace(/'s$/,"");if(w.length>=4&&okRank(w))cnt.set(w,(cnt.get(w)||0)+1);});
-        [...cnt.entries()].sort((a,b)=>b[1]-a[1]||(RANK.get(a[0])||2e4)-(RANK.get(b[0])||2e4)).forEach(([w])=>pick.push({en:w,type:"mot"}));
+      st.textContent=text?"Analyse du texte…":"Recherche de vocabulaire lié au thème…";
+      const list=await freeItems(theme,text,30,new Set([...seenBefore.map(simp),...have]));
+      if(!list.length){
+        st.textContent=fromAdd?"Rien trouvé sans IA dans ce texte. Colle un extrait plus long.":"Rien trouvé de nouveau sans IA pour ce thème. Essaie un thème plus simple (ex. « cuisine », « travail ») ou un des thèmes proposés.";
       }else{
-        st.textContent="Recherche de vocabulaire lié au thème…";
-        let en=theme;try{const r=await fetch("https://api.mymemory.translated.net/get?q="+encodeURIComponent(theme)+"&langpair=fr|en").then(r=>r.json());const mt=(r.matches||[]).find(m=>m&&m["created-by"]==="MT!");en=(mt&&mt.translation)||(r.responseData&&r.responseData.translatedText)||theme;}catch(e){}
-        en=en.replace(/[^A-Za-z' -]/g," ").trim();
-        const get=u=>fetch(u).then(r=>r.ok?r.json():[]).catch(()=>[]);
-        const STOP=new Set("the a an of at to in on for with and or my your our his her their from by as is are be".split(" "));
-        const keys=en.toLowerCase().replace(/'s\b/g,"").split(/\s+/).filter(w=>w.length>2&&!STOP.has(w)).slice(0,3);
-        if(!keys.length)keys.push(en.toLowerCase());
-        const jobs=[];
-        keys.forEach(k=>{const topics=keys.filter(x=>x!==k).join(",");const tp=topics?"&topics="+encodeURIComponent(topics):"";
-          jobs.push(get("https://api.datamuse.com/words?rel_trg="+encodeURIComponent(k)+tp+"&max=40"));
-          jobs.push(get("https://api.datamuse.com/words?ml="+encodeURIComponent(k)+tp+"&max=40"));});
-        const lists=await Promise.all(jobs);
-        const seen=new Set(keys);const maxLen=Math.max(...lists.map(l=>l.length));
-        for(let i=0;i<maxLen;i++)lists.forEach(l=>{const x=l[i];const w=x&&x.word;if(!w||seen.has(w)||!/^[a-z][a-z' -]*$/.test(w))return;seen.add(w);
-          const single=!/\s/.test(w);if(single&&!okRank(w))return;if(!single&&!keys.some(k=>w.includes(k)))return;
-          pick.push({en:w,type:single?"mot":"expression"});});
+        cands=(await freeCands(list,st)).map(c=>Object.assign(c,{dup:false,keep:true}));
+        lsSet(hKey,JSON.stringify([...seenBefore,...cands.map(c=>c.en)].slice(-300)));
+        st.textContent=note||"";
+        $("ctxMode").textContent=text?"tiré de ton texte · sans IA":"vocabulaire du thème · sans IA";
+        $("ctxMode").className="chip warn";$("ctxAddStatus").textContent="";
+        renderCands();$("ctxResults").hidden=false;
       }
-      const uniq=new Set();
-      pick=pick.filter(c=>{const k=simp(c.en);if(uniq.has(k)||seenSet.has(k))return false;uniq.add(k);return true;}).slice(0,30);
-      if(!pick.length){st.textContent=fromAdd?"Rien trouvé sans clé IA dans ce texte. Colle un extrait plus long, ou ajoute une clé dans le Guide.":"Rien trouvé sans clé IA. Essaie un thème plus simple (ex. « cuisine », « travail »), ou ajoute une clé dans le Guide.";$("cGo").disabled=false;$("xGo").disabled=false;return;}
-      let done=0;
-      const tr=async c=>{try{c.fr=await freeTranslate(c.en,"fr");}catch(e){c.fr="";}try{c.pt=await freeTranslate(c.en,"pt-BR");}catch(e){c.pt="";}done++;st.textContent="Traduction… "+done+"/"+pick.length;};
-      for(let i=0;i<pick.length;i+=5)await Promise.all(pick.slice(i,i+5).map(tr));
-      cands=pick.map(c=>({en:c.en,type:c.type,fr:c.fr||"",pt:c.pt||"",registre:"",exemple:"",note:"",dup:have.has(simp(c.en)),keep:!have.has(simp(c.en))}));
-      lsSet(hKey,JSON.stringify([...seenBefore,...cands.map(c=>c.en)].slice(-300)));
-      st.textContent="";
-      $("ctxMode").textContent=text?"tiré de ton texte · sans clé IA":"mots liés au thème · sans clé IA";
-      $("ctxMode").className="chip warn";$("ctxAddStatus").textContent="";
-      renderCands();$("ctxResults").hidden=false;
-    }catch(e){st.classList.add("err");st.textContent="Recherche gratuite indisponible pour le moment. Réessaie plus tard.";}
-    $("cGo").disabled=false;$("xGo").disabled=false;
+    }catch(e){st.classList.add("err");st.textContent="Recherche sans IA indisponible pour le moment. Réessaie plus tard.";}
+    $("cGo").disabled=false;$("xGo").disabled=false;$("cFree").disabled=false;
   }
-
   function renderCands(){
     const L=$("ctxList");L.textContent="";
     cands.forEach((c,i)=>{
